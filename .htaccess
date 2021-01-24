@@ -1,0 +1,4 @@
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteRule ^(.*)$ http://47.254.248.35/api/api-mebel-apps/public/$1 [L]
+</IfModule>
