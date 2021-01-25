@@ -9,6 +9,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Laravel\Lumen\Exceptions\Handler as ExceptionHandler;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Illuminate\Http\Response;
 
 class Handler extends ExceptionHandler
 {
@@ -28,17 +29,55 @@ class Handler extends ExceptionHandler
         parent::report($e);
     }
 
-    public function render($request, Throwable $e)
+    public function render($request, Throwable $exception)
     {
-        return parent::render($request, $e);
+        // return parent::render($request, $e);
 
-        // $rendered = parent::render($request, $e);
-        // return response()->json([
-        //     'error' => [
-        //         'code' => $rendered->getStatusCode(),
-        //         'message' => $e->getMessage(),
-        //     ]
-        // ], $rendered->getStatusCode());
+        if ($exception instanceof ValidationException) {
+            $errors = [
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $exception->errors()
+            ];
+            return response()->json(
+                $errors,
+                Response::HTTP_UNPROCESSABLE_ENTITY
+            );
+        }
+
+        if ($exception instanceof ModelNotFoundException) {
+            $errors = [
+                'status' => Response::HTTP_NOT_FOUND,
+                'errors' => [$exception->getMessage()]
+            ];
+            return response()->json(
+                $errors,
+                Response::HTTP_NOT_FOUND
+            );
+        }
+
+        if ($exception instanceof InvalidCredentialException){
+            $errors = [
+                'status' => false,
+                'code' => Response::HTTP_NOT_FOUND,
+                'errors' => [
+                    'Invalid email or username.'
+                ]
+            ];
+
+            return response()->json(
+                $errors,
+                Response::HTTP_NOT_FOUND
+            );
+        }
+
+        $rendered = parent::render($request, $exception);
+        return response()->json([
+            'code' => $rendered->getStatusCode(),
+            'errors' => [
+                'message' => $exception->getMessage(),
+            ]
+        ], $rendered->getStatusCode());
+        // return parent::render($request, $exception);
 
     }
 }

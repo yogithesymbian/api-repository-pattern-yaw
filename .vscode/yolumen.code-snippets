@@ -1,0 +1,160 @@
+{
+    // Place your api-repository-pattern workspace snippets here. Each snippet is defined under a snippet name and has a scope, prefix, body and
+    // description. Add comma separated ids of the languages where the snippet is applicable in the scope field. If scope
+    // is left empty or omitted, the snippet gets applied to all languages. The prefix is what is
+    // used to trigger the snippet and the body will be expanded and inserted. Possible variables are:
+    // $1, $2 for tab stops, $0 for the final cursor position, and ${1:label}, ${2:another} for placeholders.
+    // Placeholders with the same ids are connected.
+    // Example:
+    // "Print to console": {
+    // 	"scope": "javascript,typescript",
+    // 	"prefix": "log",
+    // 	"body": [
+    // 		"console.log('$1');",
+    // 		"$2"
+    // 	],
+    // 	"description": "Log output to console"
+    // }
+    // thanks for https://github.com/ahmadrosid/api-repository-pattern
+    // build by https://github.com/yogithesymbian
+
+    // SERVICES SNIPPET
+    "model-services-yogi@imt": {
+        "prefix": "yoservices model",
+        "body": [
+            "namespace App\\Services\\/${1:ModelFolder};",
+            "",
+            "",
+            "use App\\Services\\/${2:OtherService}\\/${3:TheModel};",
+            "use Illuminate\\Database\\Eloquent\\Model;",
+            "",
+            "class ${4:ClassName}Model extends Model",
+            "{",
+            "    protected $$table = '${5:table}';",
+            "",
+            "    protected $$fillable = [",
+            "        '${6:title}',",
+            "        '${7:text}',",
+            "        '${8:user_id}',",
+            "        '$9'",
+            "    ];",
+            "",
+            "    public function ${10:otherServiceFunc}()",
+            "    {",
+            "        return $$this->belongsTo(/${3:TheModel}::class, 'user_id', 'id');",
+            "    }",
+            "}"
+        ],
+        "description": "model-services-yogi@imt"
+    },
+    "request-services-yogi@imt": {
+        "prefix": "yoservices request",
+        "body": [
+            "namespace App\\Services\\/${1:ModelFolder};",
+            "",
+            "use App\\Http\\Requests\\RequestValidation;",
+            "",
+            "class ${2:ClassName}Request extends RequestValidation",
+            "{",
+            "    public function rules(): array",
+            "    {",
+            "        return [",
+            "            '${3:title}' => 'required|string',",
+            "            '${4:text}' => 'required|string',",
+            "            '$5' => 'required|string',",
+            "            '$6' => 'required|string',",
+            "            '$7' => 'required|string',",
+            "        ];",
+            "    }",
+            "}"
+        ],
+        "description": "request-services-yogi@imt"
+    },
+    "transformer-services-yogi@imt": {
+        "prefix": "yoservices transformer",
+        "body": [
+            "namespace App\\Services\\/${1:Folder};",
+            "",
+            "use App\\Services\\Transformer;",
+            "use App\\Services\\/${2:OtherServices}\\/${3:TheTransformer};",
+            "",
+            "class ${4:ClassName}Transformer extends Transformer",
+            "{",
+            "",
+            "    protected $$type = '${5:notes}';",
+            "",
+            "    protected $$availableIncludes = ['${6:tables_want_to_include}'];",
+            "",
+            "    /**",
+            "     * @param model ${4:ClassName}",
+            "     * @return array",
+            "     */",
+            "    public function transform($$model)",
+            "    {",
+            "        return [",
+            "            'id' => $$model->getAttribute('id'),",
+            "            '${7:title}' => $$model->getAttribute('${7:title}'),",
+            "            '${8:text}' => $$model->getAttribute('${8:text}'),",
+            "            '${9:user_id}' => $$model->getAttribute('${9:user_id}'),",
+            "            'created_at' => $$model->getAttribute('created_at'),",
+            "            'updated_at' => $$model->getAttribute('updated_at'),",
+            "        ];",
+            "    }",
+            "",
+            "    /**",
+            "     * @param ${10:param}",
+            "     * @return \\League\\Fractal\\Resource\\Item",
+            "     */",
+            "    public function includeUsers(${10:param})",
+            "    {",
+            "        return $$this->item($${10:param}->${11:objectname}, new /${3:TheTransformer}(), '${6:tables_want_to_include}');",
+            "    }",
+            "}"
+        ],
+        "description": "transformer-services-yogi@imt"
+    },
+    "repository-services-yogi@imt": {
+        "prefix": "yoservices repository",
+        "body": [
+            "namespace App\\Services\\/${1:Folder};",
+            "",
+            "use Illuminate\\Support\\Facades\\Auth;",
+            "",
+            "class ${2:ClassName}Repository",
+            "{",
+            "",
+            "    public function index()",
+            "    {",
+            "        return ${3:ClassmModel}::paginate(15);",
+            "    }",
+            "",
+            "    public function getById($$id)",
+            "    {",
+            "        return ${3:ClassmModel}::findOrFail($$id);",
+            "    }",
+            "",
+            "    public function create($$data)",
+            "    {",
+            "        return ${3:ClassmModel}::create(array_merge(",
+            "            $$data, ['user_id' => Auth::user()->id]",
+            "        ));",
+            "    }",
+            "",
+            "    public function delete($$id)",
+            "    {",
+            "        return ${3:ClassmModel}::destroy($$id);",
+            "    }",
+            "",
+            "    public function update($$id, array $$data)",
+            "    {",
+            "        $${4:parameter_name} = $this->getById($$id);",
+            "        $${4:parameter_name}->update($$data);",
+            "",
+            "        return $${4:parameter_name};",
+            "    }",
+            "",
+            "}"
+        ],
+        "description": "repository-services-yogi@imt"
+    }
+}

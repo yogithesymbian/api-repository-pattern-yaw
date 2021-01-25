@@ -35,28 +35,29 @@ Route::group([
     'prefix' => 'auth'
 ], function ($router) {
 
-    $router->post('/register', 'AuthController@register');
-    $router->post('/login', 'AuthController@login');
+    $router->post('/register', 'UserController@register');
+    $router->post('/login', 'UserController@login');
 
     $router->post('/update', 'AuthController@update');
     $router->post('/delete', 'AuthController@delete');
 
-    $router->post('/reset/sent/email', 'UserController@sendResetToken');
-    $router->post('/reset/password', 'UserController@verifyResetPassword');
+    $router->post('/reset/sent/email', 'UserControllerOld@sendResetToken');
+    $router->post('/reset/password', 'UserControllerOld@verifyResetPassword');
 
     // use secure aes-256-cbc
-    $router->post('/encrypt', 'UserController@encrypt');
-    $router->post('/decrypt', 'UserController@decrypt');
+    $router->post('/encrypt', 'UserControllerOld@encrypt');
+    $router->post('/decrypt', 'UserControllerOld@decrypt');
 
-    Route::post('refresh', 'AuthController@refresh');
-    Route::post('me', 'AuthController@me');
+    Route::post('refresh', 'UserController@refresh');
+    $router->get('show', 'UserController@show');
+    Route::post('me', 'UserController@me');
 
     $router->get('/redis', function () use ($router) {
         return $p = Redis::incr('p');
     });
 
     // redis
-    $router->post('/auth/redis', 'UserController@setRedis');
+    $router->post('/auth/redis', 'UserControllerOld@setRedis');
     // Route::get('/role', function () {
         // $user = User::find(2);
         // Jadikan user ini sebagai admin

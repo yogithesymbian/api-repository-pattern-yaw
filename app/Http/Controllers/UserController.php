@@ -1,168 +1,178 @@
 <?php
 
+
 namespace App\Http\Controllers;
+
+use App\Services\JsonApiAdapter;
+use App\Services\Users\LoginRequest;
+use App\Services\Users\RegisterRequest;
+use App\Services\Users\UserRepository;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Crypt;
-use App\Mail\ResetPasswordMail;
-use App\User;
-use Illuminate\Support\Str;
+use Illuminate\Http\Response;
+use Illuminate\Support\Arr;
+
+use App\Http\Controllers\Controller;
 
 class UserController extends Controller
 {
-     /**
-     * Store a secret message for the user. AES-256-CBC
-     *
-     * @param  Request  $request
-     * @return Response
+    /**
+     * @var UserRepository
      */
-    public function encrypt(Request $request)
+    private $repository;
+
+    /**
+     * @var JsonApiAdapter
+     */
+    private $adapter;
+
+    public function __construct(
+        UserRepository $repository,
+        JsonApiAdapter $adapter
+    )
     {
-        $user = User::where('email', $request->email)->first();
-        $user->update([
-            'secret' => "", // clean avoid maximum response
-        ]);
-
-        $encryptedValue = Crypt::encrypt($user);
-
-        $user->update([
-            'secret' => $encryptedValue,
-        ]);
-
-        return response()->json([
-            'status' => true,
-            'message' => 'Store Secret',
-            'secret' => $user->secret,
-            'token' => $user->api_token,
-        ], 200);
+        $this->repository = $repository;
+        $this->adapter = $adapter;
     }
 
-     /**
-     * Decrypt a secret message for the user. AES-256-CBC
-     *
-     * @param  Request  $request
-     * @return Response
-     */
-    public function decrypt(Request $request)
+    public function show(Request $request)
     {
-        $user = User::where('email', $request->email)->first();
+        return $this->adapter
+            ->render($request->user());
+    }
+    /**
+     * Get the authenticated User.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function me()
+    {
+        return response()->json(auth('api')->user());
+    }
 
-        $decrypted="";
+    public function register(RegisterRequest $request)
+    {
+        return $user = $this->repository
+            ->register(
+                $request->validated()
+            );
+    }
 
-        try {
-            $decrypted = Crypt::decrypt($user->secret);
-        } catch (DecryptException $e) {
-            return response()->json([
-                'status' => false,
-                'message' => $e
-            ], 200);
+    public function login(LoginRequest $request)
+    {
+        return $this->repository
+            ->login(
+                $request->validated()
+            );
+    }
+
+    /**
+     * Log the user out (Invalidate the token).
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function logout()
+    {
+        auth('api')->logout();
+
+        return response()->json(['message' => 'Successfully logged out']);
+    }
+
+    /**
+     * Refresh a token.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function refresh()
+    {
+        return $this->respondWithToken(auth('api')->refresh());
+    }
+
+    public function update(Request $request)
+    {
+        $id = $request->input('id');
+        $user = User::where('id', $id)->first();
+
+        $name = $request->input('name');
+        $email = $request->input('email');
+        $user_photo = $request->input('user_photo');
+
+        $password = Hash::make($request->input('password'));
+
+        $state_update = $request->input('state_update');
+        /**
+        * 0 update password - state_update
+        * 1 no update password - state_update
+        * 2 update profile photo only
+        */
+        if($state_update == 0){ // 0 update password - state_update
+            // elquent
+            $user->update([
+                        'name'      => $name,
+                        'email'     => $email,
+                        'password'  => $password
+                    ]);
+        }
+        if($state_update == 1) { // 1 no update password - state_update
+            // elquent
+            $user->update([
+                        'name' => $name,
+                        'email' => $email
+                    ]);
+        }
+        if($state_update == 2){ // 2 update profile photo only
+            // elquent
+            $user->update([
+                        'user_photo' => $user_photo
+            ]);
         }
 
-        return response()->json([
-            'status' => true,
-            'message' => 'decrypted Secret Value',
-            'decrypted' => $decrypted,
-            'token' => $user->api_token,
-        ], 200);
-    }
+        if($user)
+           {
+            $apiToken = base64_encode(Str::random(40));
 
-    public function setRedis(Request $request)
-    {
-        $this->validate($request, [
-            'key' => 'required'
-        ]);
-
-        $key = $request->key;
-        $seconds = 86400;
-
-        app('redis')->set($key, "token123 sudah");
-
-        // if(app('redis')->exists($key)){
-
-        //     app('redis')->set($key, "token123 sudah");
-
-        // } else {
-
-        //     app('redis')->set($key, "token123 belum");
-
-        // }
-
-        app('redis')->expire($key, $seconds);
-
-        return response()->json([
-            'status' => true,
-            'message' => 'decrypted Secret Value',
-            'redis' => app('redis')->get($key),
-        ], 200);
-    }
-
-    public function sendResetToken(Request $request)
-    {
-        //VALIDASI EMAIL UNTUK MEMASTIKAN BAHWA EMAILNYA SUDAH ADA
-        $this->validate($request, [
-            'email' => 'required|email|exists:users'
-        ]);
-
-        $apiToken = "".rand(1000,9999)."";
-        // $apiToken = base64_encode(str_random(40));
-
-        //GET DATA USER BERDASARKAN EMAIL TERSEBUT
-        $user = User::where('email', $request->email)->first();
-        //LALU GENERATE TOKENNYA
-        $user->update([
-            'remember_token' => $apiToken,
-        ]);
-
-        //kirim token via email sebagai otentikasi kepemilikan
-        Mail::to($user->email)->send(new ResetPasswordMail($user));
-
-        return response()->json([
-            'status' => true,
-            'message' => 'token telah dikirim',
-            'token' => $user->remember_token
-        ], 200);
-    }
-
-    public function verifyResetPassword(Request $request)
-    {
-        $rememberToken = $request->input('remember_token');
-        //VALIDASI EMAIL UNTUK MEMASTIKAN BAHWA EMAILNYA SUDAH ADA
-        $this->validate($request, [
-            'email' => 'required|email|exists:users',
-            'password' => 'required|string|min:6'
-        ]);
-
-        //GET DATA USER BERDASARKAN EMAIL TERSEBUT
-        $user = User::where('email', $request->email)->first();
-
-        if ($user->remember_token == $rememberToken) {
-            # code...
-            //UPDATE PASSWORD USER TERKAIT
             $user->update([
-                'password' => Hash::make($request->password),
-                'remember_token' => ""
+                'api_token' => $apiToken
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Update Success',
+                'data' => [
+                    'user' => $user,
+                    'api_token' => $apiToken
                 ]
-            );
-            if($user){
-                return response()->json([
-                    'status' => true,
-                    'message' => 'change password success',
-                    'data' =>  [
-                            'user' => $user
-                        ]
-                ], 200);
-            }
+            ],201);
+        }
+        else {
+            return response()->json([
+                    'success' => false,
+                    'message' => '',
+                    'data' => [
+                        'user' => ''
+                    ]
+                ], 400);
+        }
+    }
+
+    public function delete(Request $request)
+    {
+        $id = $request->input('id');
+        # code...
+        // elquent
+        $delete = User::where('id', $id)
+            ->delete();
+
+        if ($delete) {
+            return response()->json([
+                'success' => true,
+                'message' => 'delete user successfully'
+            ], 201);
         } else {
             return response()->json([
-                'status' => false,
-                'message' => 'token salah',
-                'token' => $rememberToken,
-                'data' =>  [
-                        'user' => ""
-                    ]
+                'success' => false,
+                'message' => 'update user unsuccessfully'
             ], 400);
         }
-
     }
+
 }
